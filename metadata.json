@@ -1,0 +1,6 @@
+{
+  "name": "Fahad's Adventure",
+  "description": "A cinematic open-world 3D adventure game featuring animal hunting, ocean navigation, sailing, and heavy driving.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

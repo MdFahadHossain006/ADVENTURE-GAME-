@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Fahad's Adventure - Cinematic Open World 3D Game</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #050510;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+    }
+    /* Simple custom UI details */
+    .glow-border {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(14px) saturate(160%);
+      background: rgba(15, 23, 42, 0.65); /* Sleek slate-900 transparent theme */
+    }
+  </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="text-white">
+
+  <!-- Main Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Dynamic Loading & Intro Cinematic Screen -->
+  <div id="intro-screen" class="absolute inset-0 z-50 flex flex-col justify-between p-8 bg-gradient-to-br from-[#0c0f1d] via-[#05050a] to-[#120a1c] transition-opacity duration-1000">
+    <div class="flex justify-between items-center w-full">
+      <div class="text-xs uppercase tracking-widest text-slate-400 font-mono">Fahad's Adventure // v1.2</div>
+      <button id="skip-btn" class="px-5 py-2 text-xs font-mono tracking-wider text-white bg-white/10 hover:bg-white/20 rounded-full border border-white/20 transition duration-300 hidden cursor-pointer">SKIP INTRO [SPACE]</button>
+    </div>
+
+    <div class="max-w-2xl mx-auto text-center my-auto flex flex-col items-center">
+      <h1 class="text-5xl md:text-7xl font-light tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-200 to-amber-500 mb-4 animate-pulse">
+        FAHAD'S ADVENTURE
+      </h1>
+      <p class="text-slate-400 tracking-wide text-xs md:text-sm font-sans mb-8 max-w-md">
+        A cinematic open-world wilderness and maritime adventure game. Explore the great outdoors, sail massive ships, drive vehicles, hunt dangerous beasts, and trade at the city markets.
+      </p>
+      
+      <!-- Loader indicator -->
+      <div id="loader-section" class="w-64 bg-white/10 h-1.5 rounded-full overflow-hidden mb-4">
+        <div id="loader-bar" class="bg-amber-400 h-full w-0 transition-all duration-300"></div>
+      </div>
+      <div id="loader-status" class="text-xs font-mono text-amber-300 tracking-widest">PROP REGISTRATION...</div>
+      
+      <!-- Start Button (Fades in when loaded) -->
+      <button id="start-btn" class="px-8 py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold tracking-widest rounded-lg transition duration-300 transform hover:scale-105 shadow-xl shadow-amber-400/20 hidden cursor-pointer">
+        START ADVENTURE
+      </button>
+    </div>
+
+    <div class="flex flex-wrap justify-between items-end w-full text-xs text-slate-400 font-mono gap-4">
+      <div>CONTROLS: WASD / Arrow Keys to Move • Shift to Run • Mouse-Drag to Look • Left Click to Attack • E/F Interacts • R Weapons</div>
+      <div>BUILT WITH THREE.JS • AUDIO GENERATED SYNTHETICALLY</div>
+    </div>
+  </div>
+
+  <!-- Cinematic Slogan / Intertitles during flying tour -->
+  <div id="cinematic-intertitle" class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 z-40 text-center pointer-events-none opacity-0 transition-opacity duration-1000 hidden">
+    <h2 id="intertitle-text" class="text-2xl md:text-4xl font-extralight tracking-widest text-amber-200 uppercase drop-shadow-lg">
+      A GRAND WILDERNESS AWAITS
+    </h2>
+  </div>
+
+  <!-- Cinematic Vignette Overlay -->
+  <div class="absolute inset-0 pointer-events-none z-20 border-[40px] border-black/5 mix-blend-overlay shadow-[inset_0_0_100px_rgba(0,0,0,0.65)]"></div>
+
+  <!-- Interactive Game UI (HUD) -->
+  <div id="hud" class="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-6 font-sans hidden font-semibold">
+    
+    <!-- Top HUD Banner Title & Left-Right Stats/Coins -->
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
+      <h1 class="text-xs font-black tracking-[0.7em] text-white/50 hover:text-white/80 transition duration-500 uppercase drop-shadow-lg">Fahad's Adventure</h1>
+    </div>
+
+    <!-- Top HUD: Compass & Day Phase & Cash -->
+    <div class="flex justify-between items-start w-full pointer-events-auto mt-2">
+      <!-- Status Box: Compass & Time Tracker -->
+      <div class="bg-black/50 backdrop-blur-md rounded-xl px-4 py-2 flex items-center gap-4 text-xs font-semibold border border-white/10 hover:border-white/20 transition duration-300 shadow-lg">
+        <div class="flex flex-col">
+          <span class="text-slate-400 font-bold uppercase tracking-wider text-[8px] opacity-70">TIME / PHASE</span>
+          <span id="hud-time" class="text-amber-300 font-bold tracking-widest text-[11px] font-mono">08:30 SUNRISE</span>
+        </div>
+        <div class="h-6 w-[1px] bg-white/10"></div>
+        <div class="flex flex-col">
+          <span class="text-slate-400 font-bold uppercase tracking-wider text-[8px] opacity-70">COMPASS</span>
+          <span id="hud-compass" class="text-white font-bold tracking-widest text-[11px] font-mono">N 0°</span>
+        </div>
+      </div>
+
+      <!-- Coin Counter (Sleek Interface Style) -->
+      <div class="bg-black/60 backdrop-blur-md rounded-full px-5 py-2 border border-white/10 flex items-center gap-3 hover:border-white/20 transition duration-300 shadow-xl">
+        <div class="w-6 h-6 bg-gradient-to-b from-amber-300 to-amber-500 rounded-full flex items-center justify-center font-black text-slate-950 shadow-inner text-xs">🪙</div>
+        <div class="flex flex-col">
+          <span class="text-[8px] text-slate-400 uppercase tracking-[0.15em] font-bold font-sans">FAHAD'S COINS</span>
+          <span id="coin-count" class="text-xl font-bold font-mono tracking-tighter text-amber-400 leading-none">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Middle Interactive Alert Prompts -->
+    <div class="mx-auto flex flex-col items-center justify-center gap-2 mb-20 pointer-events-none">
+      <div id="prompt" class="bg-black/80 backdrop-blur-xl border border-white/25 px-8 py-4 rounded-xl shadow-2xl flex flex-col items-center gap-1 transition-all duration-300 transform hover:scale-105 pointer-events-auto cursor-pointer hidden">
+        <div class="text-[9px] tracking-[0.25em] text-white/50 uppercase font-black mb-1">AVAILABLE INTERACTION</div>
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 flex items-center justify-center rounded-lg bg-white text-black font-black text-xl shadow-inner">E</div>
+          <div class="text-xl font-light tracking-tight text-white">INTERACT / <span class="font-bold">E</span></div>
+        </div>
+      </div>
+      <div id="status-toast" class="bg-amber-400 text-slate-950 px-5 py-2.5 rounded-lg text-xs font-bold tracking-widest uppercase transition duration-500 transform scale-0 opacity-0 shadow-lg font-mono">
+        LOOT ACQUIRED: BOAR MEAT (+1)
+      </div>
+    </div>
+
+    <!-- Bottom HUD: Health/Stamina, Minimap, Active Weapon -->
+    <div class="flex flex-col md:flex-row justify-between items-end w-full gap-4 pointer-events-auto">
+      
+      <!-- Bottom Left: Stats Panel (Health, Stamina, Oxygen) -->
+      <div class="glow-border p-4 rounded-2xl w-full max-w-xs flex flex-col gap-2.5 hover:border-white/20 transition-all duration-300">
+        <div class="flex items-center gap-3 pb-1 border-b border-white/5">
+          <div class="w-7 h-7 rounded-full bg-slate-800 border border-white/20 flex items-center justify-center font-bold text-xs shadow-lg text-amber-400">FA</div>
+          <div class="flex-1">
+            <div id="hud-name" class="text-[10px] uppercase tracking-widest font-bold text-orange-400 flex items-center justify-between">
+              <span>FAHAD ADVENTURER</span>
+              <span id="mode-badge" class="text-[9px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-semibold tracking-normal">WALKING</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Health Bar -->
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-[9px] font-mono font-bold tracking-wider text-slate-400">
+            <span>VITALITY (HP)</span>
+            <span id="val-hp">100%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800 p-[1px]">
+            <div id="bar-hp" class="bg-gradient-to-r from-red-600 to-rose-400 h-full w-full transition-all duration-300 rounded-full"></div>
+          </div>
+        </div>
+
+        <!-- Stamina Bar -->
+        <div class="flex flex-col gap-1">
+          <div class="flex justify-between text-[9px] font-mono font-bold tracking-wider text-slate-400">
+            <span>STAMINA (FP)</span>
+            <span id="val-stm">100%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800 p-[1px]">
+            <div id="bar-stm" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full w-full transition-all duration-300 rounded-full"></div>
+          </div>
+        </div>
+
+        <!-- Oxygen Bar (Swimming details) -->
+        <div id="oxygen-container" class="flex flex-col gap-1 hidden">
+          <div class="flex justify-between text-[9px] font-mono font-bold tracking-wider text-slate-400">
+            <span>OXYGEN (WATER)</span>
+            <span id="val-oxy">100%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800 p-[1px]">
+            <div id="bar-oxy" class="bg-gradient-to-r from-teal-500 to-emerald-400 h-full w-full transition-all duration-300 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Center: Weapon Slots & Vehicle Speedometer -->
+      <div class="flex flex-col items-center gap-4 w-full md:w-auto">
+        <!-- Speedometer (when driving) -->
+        <div id="hud-speedometer" class="bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-xl flex items-center justify-center gap-4 text-xs font-mono hidden max-w-[150px] border border-white/10 shadow-xl">
+          <div class="text-center">
+            <div class="text-[8px] text-slate-400 uppercase font-black tracking-wider">SPEED</div>
+            <div id="hud-speed" class="text-lg font-black text-sky-400">0 km/h</div>
+          </div>
+          <div class="h-6 w-[1px] bg-white/10"></div>
+          <div class="text-center">
+            <div class="text-[8px] text-slate-400 uppercase font-black tracking-wider">ENGINE</div>
+            <div class="text-lg font-bold text-emerald-400 animate-pulse">ON</div>
+          </div>
+        </div>
+
+        <!-- Weapon Hotbar -->
+        <div id="hud-weapons" class="bg-black/45 backdrop-blur-md px-3 py-2.5 rounded-2xl flex items-center justify-center gap-3 border border-white/10 shadow-2xl">
+          <button id="weap-0" class="w-20 h-24 bg-black/60 rounded-xl border-2 border-amber-400 text-amber-300 flex flex-col items-center justify-center gap-1.5 transition duration-300 hover:bg-black/80 hover:border-amber-300 cursor-pointer shadow-lg">
+            <span class="text-[9px] text-white/40 uppercase font-black tracking-widest">Slot 1</span>
+            <span class="text-3xl">🔪</span>
+            <span class="text-[9px] bg-amber-500 text-black px-1.5 font-bold rounded tracking-wider leading-tight">KNIFE</span>
+          </button>
+          <button id="weap-1" class="w-20 h-24 bg-black/40 rounded-xl border border-white/10 text-slate-400 flex flex-col items-center justify-center gap-1.5 transition duration-300 hover:bg-black/60 hover:border-white/30 cursor-pointer shadow-sm">
+            <span class="text-[9px] text-white/40 uppercase font-black tracking-widest">Slot 2</span>
+            <span class="text-3xl">🔱</span>
+            <span class="text-[9px] px-1 font-semibold rounded tracking-wider leading-tight">SPEAR</span>
+          </button>
+          <button id="weap-2" class="w-20 h-24 bg-black/40 rounded-xl border border-white/10 text-slate-400 flex flex-col items-center justify-center gap-1.5 transition duration-300 hover:bg-black/60 hover:border-white/30 cursor-pointer shadow-sm">
+            <span class="text-[9px] text-white/40 uppercase font-black tracking-widest">Slot 3</span>
+            <span class="text-3xl">🏹</span>
+            <span class="text-[9px] px-1 font-semibold rounded tracking-wider leading-tight">BOW</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Right: Inventory Slot & Radar Minimap -->
+      <div class="glow-border p-4 rounded-2xl flex md:flex-row flex-col gap-4 w-full max-w-xs items-center">
+        <!-- Compact Inventory Grid -->
+        <div class="flex flex-col gap-2.5 w-full">
+          <div class="text-[10px] font-mono text-slate-400 tracking-wider uppercase border-b border-white/10 pb-1 font-bold">ADVENTURE LOOT</div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-black/40 h-12 rounded-xl flex flex-col items-center justify-center border border-white/5 transition duration-300 hover:border-white/15">
+              <span class="text-base">🥩</span>
+              <span id="inv-meat" class="text-[9px] font-mono font-bold text-amber-400 leading-none mt-1">0x MEAT</span>
+            </div>
+            <div class="bg-black/40 h-12 rounded-xl flex flex-col items-center justify-center border border-white/5 transition duration-300 hover:border-white/15">
+              <span class="text-base">🛡️</span>
+              <span id="inv-skin" class="text-[9px] font-mono font-bold text-amber-400 leading-none mt-1">0x FUR</span>
+            </div>
+            <div class="bg-black/40 h-12 rounded-xl flex flex-col items-center justify-center border border-white/5 transition duration-300 hover:border-white/15">
+              <span class="text-base">🦈</span>
+              <span id="inv-shrk" class="text-[9px] font-mono font-bold text-amber-400 leading-none mt-1">0x FIN</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Simple HTML5 Radar Minimap (Sleek Interface Styled) -->
+        <div class="relative w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)] overflow-hidden flex-shrink-0 shadow-2xl">
+          <canvas id="radar-canvas" width="96" height="96" class="absolute inset-0 opacity-80"></canvas>
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <!-- Center Crosshair indicating Fahad's direction -->
+            <div class="w-1.5 h-1.5 bg-amber-400 rounded-full border border-black animate-ping"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Virtual Mobile Joysticks for Touch & Mouse Drag on iframe -->
+  <div id="touch-controls" class="absolute inset-0 z-20 pointer-events-none hidden select-none">
+    <!-- Action buttons (Right) -->
+    <div class="absolute right-8 bottom-64 flex flex-col gap-3 pointer-events-auto">
+      <button id="touch-attack" class="w-14 h-14 bg-red-600/70 active:bg-red-700/90 text-white rounded-full border border-red-500 shadow-lg flex items-center justify-center font-bold text-lg cursor-pointer">ATK</button>
+      <button id="touch-jump" class="w-14 h-14 bg-sky-500/70 active:bg-sky-600/90 text-white rounded-full border border-sky-400 shadow-lg flex items-center justify-center font-bold text-sm cursor-pointer">JUMP</button>
+      <button id="touch-interact" class="w-14 h-14 bg-amber-400 text-slate-950 active:bg-amber-300 rounded-full shadow-lg flex items-center justify-center font-bold text-lg hidden cursor-pointer">E</button>
+    </div>
+  </div>
+
+  <script>
+    /**************************************************************************
+     * AUDIO SYSTEM - SYNTHESIZER (WEB AUDIO API)
+     * No external assets needed, procedural generation of high-quality audio
+     **************************************************************************/
+    const AudioEngine = {
+      ctx: null,
+      trackVolume: null,
+      noiseNode: null,
+      engineOsc: null,
+      engineGain: null,
+
+      init() {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContextClass();
+          this.trackVolume = this.ctx.createGain();
+          this.trackVolume.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          this.trackVolume.connect(this.ctx.destination);
+          this.startWindAmbience();
+        } catch(e) {
+          console.warn("Audio Context failed to load", e);
+        }
+      },
+
+      resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      playAmbientMelody() {
+        if (!this.ctx) return;
+        const notes = [220.00, 246.94, 277.18, 329.63, 369.99, 440.00]; // Pentatonic A minor / major warmth
+        setInterval(() => {
+          if (Math.random() > 0.45) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(notes[Math.floor(Math.random() * notes.length)] * 0.5, this.ctx.currentTime);
+          
+          gain.gain.setValueAtTime(0.0, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.05, this.ctx.currentTime + 2.0);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 6.0);
+          
+          osc.connect(gain);
+          gain.connect(this.trackVolume);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 6.5);
+        }, 11000);
+      },
+
+      startWindAmbience() {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * 2;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.value = 400;
+        filter.Q.value = 2.0;
+
+        const gainNode = this.ctx.createGain();
+        gainNode.gain.value = 0.04;
+
+        whiteNoise.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+        whiteNoise.start();
+
+        // Moderate wind sweeps
+        setInterval(() => {
+          const sweep = 350 + Math.random() * 200;
+          filter.frequency.linearRampToValueAtTime(sweep, this.ctx.currentTime + 3.0);
+        }, 4000);
+      },
+
+      playSwingSFX() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      },
+
+      playHitSFX(isShark = false) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(isShark ? 110 : 180, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(30, this.ctx.currentTime + 0.2);
+        
+        gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+      },
+
+      playCoinGoldSFX() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(987.77, this.ctx.currentTime); // B5 note
+        osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08); // E6
+        
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      },
+
+      playAnimalRoarSFX(isPredator = false) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(isPredator ? 65 : 120, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(isPredator ? 35 : 60, this.ctx.currentTime + 0.5);
+        
+        gain.gain.setValueAtTime(0.16, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.61);
+      },
+
+      startEngineSound() {
+        if (!this.ctx || this.engineOsc) return;
+        this.engineOsc = this.ctx.createOscillator();
+        this.engineGain = this.ctx.createGain();
+        this.engineOsc.type = "sawtooth";
+        this.engineOsc.frequency.value = 55; // low idle hum
+        this.engineGain.gain.value = 0.05;
+        this.engineOsc.connect(this.engineGain);
+        this.engineGain.connect(this.ctx.destination);
+        this.engineOsc.start();
+      },
+
+      setEnginePitch(speedRatio) {
+        if (!this.engineOsc) return;
+        const pitch = 45 + (speedRatio * 180);
+        this.engineOsc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
+        this.engineGain.gain.setValueAtTime(0.05 + (speedRatio * 0.05), this.ctx.currentTime);
+      },
+
+      stopEngineSound() {
+        if (this.engineOsc) {
+          try { this.engineOsc.stop(); } catch(e){}
+          this.engineOsc = null;
+          this.engineGain = null;
+        }
+      }
+    };
+
+
+    /**************************************************************************
+     * SCENE PARAMETERS & WORLD GEOGRAPHY
+     **************************************************************************/
+    const WORLD_SIZE = 1400;
+    const WORLD_HALF = WORLD_SIZE / 2;
+    const SEA_LEVEL = -4.0;
+
+    // Biome zones positions
+    const Biomes = {
+      FOREST: { x: -350, z: -350, r: 250, label: "DUNES & FOREST CLEARING" },
+      CITY: { x: 350, z: -250, r: 250, label: "MODERN CITY COMMERCE" },
+      VILLAGE: { x: -300, z: 300, r: 250, label: "RUSTIC VILLAGE" },
+      MOUNTAIN: { x: 350, z: 350, r: 200, label: "ROCKY PEAK HEIGHTS" },
+      OCEAN: { x: 0, z: 0, r: 600, label: "SHARK COVE SEAS" }
+    };
+
+    const GameState = {
+      coins: 0,
+      inventory: {
+        meat: 0,
+        skin: 0,
+        sharkFin: 0
+      },
+      hp: 100,
+      stamina: 100,
+      oxygen: 100,
+      activeWeaponIdx: 0, // 0: Knife, 1: Spear, 2: Bow
+      activeMode: "WALKING", // WALKING, DRIVING
+      activeVehicle: null,
+      dayTime: 0.12, // 0.0 to 1.0 day time
+      dayPhases: ["SUNRISE", "DAYTIME", "SUNSET", "NIGHTTIME"],
+      currentBiome: "FOREST"
+    };
+
+    /**************************************************************************
+     * ENGINE INITIALIZATION & LOAD SYSTEM
+     **************************************************************************/
+    let scene, renderer, camera;
+    let clock, lights = {}, fog;
+    const loaderBar = document.getElementById("loader-bar");
+    const loaderStatus = document.getElementById("loader-status");
+
+    function setLoader(progress, text) {
+      if(loaderBar) loaderBar.style.width = progress + "%";
+      if(loaderStatus) loaderStatus.innerText = text.toUpperCase();
+    }
+
+    // Interactive storage
+    let player = {
+      mesh: null,
+      pos: new THREE.Vector3(Biomes.FOREST.x + 50, 2.0, Biomes.FOREST.z + 50),
+      rot: 0,
+      vel: new THREE.Vector3(),
+      isSprinting: false,
+      isAttacking: false,
+      isSwimming: false,
+      isJumping: false,
+      airVelocityY: 0,
+      attackTimer: 0,
+      radius: 1.2
+    };
+
+    // Lists of environment units
+    let vehicles = [];
+    let animals = [];
+    let treesInstance = [];
+    let interactiveProps = [];
+    let visualParticles = [];
+    let cityRoadPlanes = [];
+    let directionalSkySphere;
+
+    /**************************************************************************
+     * INPUT HANDLING (KEYBOARD & TOUCH)
+     **************************************************************************/
+    const keys = { w: false, a: false, s: false, d: false, Shift: false, Space: false, e: false, r: false, arrowup: false, arrowdown: false, arrowleft: false, arrowright: false };
+
+    // Trigger action functions
+    window.addEventListener("keydown", (e) => {
+      const k = e.key.toLowerCase();
+      if(k in keys) keys[k] = true;
+      if(e.key === "Shift") keys.Shift = true;
+      if(e.key === " ") keys.Space = true;
+      
+      // Weapon Switch
+      if(e.key === "1") selectWeapon(0);
+      if(e.key === "2") selectWeapon(1);
+      if(e.key === "3") selectWeapon(2);
+      if(k === "r") {
+        selectWeapon((GameState.activeWeaponIdx + 1) % 3);
+      }
+      
+      // Interact
+      if(k === "e" || k === "f") {
+        triggerInteraction();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      const k = e.key.toLowerCase();
+      if(k in keys) keys[k] = false;
+      if(e.key === "Shift") keys.Shift = false;
+      if(e.key === " ") keys.Space = false;
+    });
+
+    // Touch setup variables
+    let touchControlX = 0;
+    let touchControlY = 0;
+    let touchLookYaw = 0;
+    let touchLookPitch = 0.2;
+    let mouseDragActive = false;
+    let prevMouseX = 0, prevMouseY = 0;
+
+    // Viewport drag look & touch mechanics
+    const container = document.getElementById("canvas-container");
+    container.addEventListener("mousedown", (e) => {
+      mouseDragActive = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+      AudioEngine.resume();
+    });
+
+    window.addEventListener("mouseup", () => { mouseDragActive = false; });
+
+    window.addEventListener("mousemove", (e) => {
+      if(!mouseDragActive) return;
+      const dX = e.clientX - prevMouseX;
+      const dY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+
+      touchLookYaw -= dX * 0.005;
+      touchLookPitch = Math.max(-0.6, Math.min(1.1, touchLookPitch - dY * 0.005));
+    });
+
+    // Handle Mobile Joysticks
+    function showTouchUI() {
+      if ('ontouchstart' in window) {
+        document.getElementById("touch-controls").classList.remove("hidden");
+      }
+    }
+
+
+    /**************************************************************************
+     * PROCEDURAL GRAPHICS GENERATOR (LOW POLY CRAFT)
+     **************************************************************************/
+    
+    // Quick custom materials
+    function getExplorationMaterial(color, roughness=0.8, emissive=0x000000) {
+      return new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: roughness,
+        emissive: emissive,
+        flatShading: true
+      });
+    }
+
+    // Build Fahad Custom Model (Scarf, Backpack, Hat, Explorer Suit)
+    function buildFahadModel() {
+      const fahadGroup = new THREE.Group();
+
+      // Body / Jacket
+      const jacketGeom = new THREE.CylinderGeometry(0.5, 0.4, 1.4, 6);
+      const jacketMat = getExplorationMaterial(0x1a4a3a); // Emerald adventure adventurer jacket
+      const bodyMesh = new THREE.Mesh(jacketGeom, jacketMat);
+      bodyMesh.position.y = 1.2;
+      bodyMesh.castShadow = true;
+      bodyMesh.receiveShadow = true;
+      fahadGroup.add(bodyMesh);
+
+      // Backpack
+      const packGeom = new THREE.BoxGeometry(0.5, 0.8, 0.4);
+      const packMat = getExplorationMaterial(0xb45309); // leather saddle brown backpack
+      const packMesh = new THREE.Mesh(packGeom, packMat);
+      packMesh.position.set(0, 1.3, -0.4);
+      packMesh.castShadow = true;
+      fahadGroup.add(packMesh);
+
+      // Scarf (Orange-Red Flowing scarf)
+      const scarfGeom = new THREE.CylinderGeometry(0.52, 0.52, 0.2, 8);
+      const scarfMat = getExplorationMaterial(0xdc2626); // vivid crimson red
+      const scarfMesh = new THREE.Mesh(scarfGeom, scarfMat);
+      scarfMesh.position.set(0, 1.85, 0);
+      fahadGroup.add(scarfMesh);
+
+      // Scarf long trailing ends
+      const endGeom = new THREE.BoxGeometry(0.15, 0.1, 0.8);
+      const scarfEnd = new THREE.Mesh(endGeom, scarfMat);
+      scarfEnd.position.set(0, 1.75, -0.6);
+      scarfEnd.name = "scarf_trail";
+      fahadGroup.add(scarfEnd);
+
+      // Head
+      const headGeom = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+      const headMat = getExplorationMaterial(0xffdbac); // Skin color
+      const headMesh = new THREE.Mesh(headGeom, headMat);
+      headMesh.position.y = 2.2;
+      headMesh.castShadow = true;
+      fahadGroup.add(headMesh);
+
+      // Hat (Adventure Wide-Brim Hat)
+      const brimGeom = new THREE.CylinderGeometry(0.8, 0.8, 0.05, 8);
+      const brimMat = getExplorationMaterial(0x78350f, 0.9);
+      const brimMesh = new THREE.Mesh(brimGeom, brimMat);
+      brimMesh.position.y = 2.45;
+      fahadGroup.add(brimMesh);
+
+      const crownGeom = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 6);
+      const crownMesh = new THREE.Mesh(crownGeom, brimMat);
+      crownMesh.position.y = 2.6;
+      fahadGroup.add(crownMesh);
+
+      // Legs
+      const legGeom = new THREE.CylinderGeometry(0.18, 0.15, 1.0, 5);
+      const trousersMat = getExplorationMaterial(0x3f3f46); // dark carbon trousers
+      const bootsMat = getExplorationMaterial(0x312e81); // explorer leather navy boots
+
+      const leftLeg = new THREE.Mesh(legGeom, trousersMat);
+      leftLeg.position.set(-0.25, 0.5, 0);
+      leftLeg.name = "left_leg";
+      leftLeg.castShadow = true;
+      fahadGroup.add(leftLeg);
+
+      const rightLeg = leftLeg.clone();
+      rightLeg.position.x = 0.25;
+      rightLeg.name = "right_leg";
+      fahadGroup.add(rightLeg);
+
+      // Boots decoration
+      const bootGeom = new THREE.BoxGeometry(0.25, 0.18, 0.4);
+      const leftBoot = new THREE.Mesh(bootGeom, bootsMat);
+      leftBoot.position.set(-0.25, 0.09, 0.08);
+      fahadGroup.add(leftBoot);
+
+      const rightBoot = leftBoot.clone();
+      rightBoot.position.x = 0.25;
+      fahadGroup.add(rightBoot);
+
+      // Weapons Node (For Knife/Spear appearance)
+      const weaponArmNode = new THREE.Group();
+      weaponArmNode.position.set(0.6, 1.3, 0.3);
+      weaponArmNode.name = "weapon_node";
+      fahadGroup.add(weaponArmNode);
+
+      // Bow held back model
+      const backBowGeom = new THREE.TorusGeometry(0.4, 0.04, 5, 8, Math.PI);
+      const backBowMat = getExplorationMaterial(0xd97706);
+      const backBow = new THREE.Mesh(backBowGeom, backBowMat);
+      backBow.rotation.y = Math.PI / 2;
+      backBow.position.set(-0.2, 1.4, -0.6);
+      fahadGroup.add(backBow);
+
+      return fahadGroup;
+    }
+
+    // Dynamic weapon holding updating
+    function updateHeldWeaponMesh() {
+      if(!player.mesh) return;
+      const wNode = player.mesh.getObjectByName("weapon_node");
+      if(!wNode) return;
+      
+      // Clean existing
+      while(wNode.children.length > 0) {
+        wNode.remove(wNode.children[0]);
+      }
+
+      if(GameState.activeWeaponIdx === 0) {
+        // Knife
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 5), getExplorationMaterial(0x78350f));
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.08), getExplorationMaterial(0xe2e8f0, 0.2));
+        blade.position.y = 0.28;
+        handle.add(blade);
+        wNode.add(handle);
+      } else if(GameState.activeWeaponIdx === 1) {
+        // Spear
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.0, 5), getExplorationMaterial(0x92400e));
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 4), getExplorationMaterial(0x94a3b8, 0.2));
+        tip.position.y = 1.1;
+        shaft.add(tip);
+        wNode.add(shaft);
+      } else if(GameState.activeWeaponIdx === 2) {
+        // Bow (Active in hand)
+        const bowArc = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.03, 5, 8, Math.PI), getExplorationMaterial(0xd97706));
+        bowArc.rotation.z = Math.PI / 2;
+        wNode.add(bowArc);
+      }
+    }
+
+    // Procedural simple animal meshes
+    function createAnimalMesh(type) {
+      const g = new THREE.Group();
+      let bodyMat, headMat;
+
+      if(type === "rabbit") {
+        bodyMat = getExplorationMaterial(0xf4f4f5);
+        // compact ball body
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 5, 5), bodyMat);
+        b.scale.set(1.4, 1.0, 1.0);
+        g.add(b);
+        // head
+        const h = new THREE.Mesh(new THREE.SphereGeometry(0.2, 5, 5), bodyMat);
+        h.position.set(0.35, 0.22, 0);
+        g.add(h);
+        // long ears
+        const earG = new THREE.BoxGeometry(0.06, 0.35, 0.12);
+        const lEar = new THREE.Mesh(earG, bodyMat); lEar.position.set(0.32, 0.45, 0.082);
+        const rEar = lEar.clone(); rEar.position.z = -0.082;
+        g.add(lEar); g.add(rEar);
+      } 
+      else if(type === "deer") {
+        bodyMat = getExplorationMaterial(0xd97706);
+        headMat = getExplorationMaterial(0x78350f);
+        // Body
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.5), bodyMat);
+        g.add(b);
+        // neck
+        const n = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.6, 5), bodyMat);
+        n.position.set(0.4, 0.4, 0);
+        n.rotation.z = -Math.PI / 5;
+        g.add(n);
+        // head
+        const h = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.2), bodyMat);
+        h.position.set(0.6, 0.7, 0);
+        g.add(h);
+        // Horns
+        const ht = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 4), headMat);
+        ht.position.set(0.55, 1.0, 0.12);
+        const ht2 = ht.clone(); ht2.position.z = -0.12;
+        g.add(ht); g.add(ht2);
+      }
+      else if(type === "boar") {
+        bodyMat = getExplorationMaterial(0x3f3f46);
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 0.9, 6), bodyMat);
+        b.rotation.z = Math.PI / 2;
+        g.add(b);
+        // big head
+        const h = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.45, 5), getExplorationMaterial(0x27272a));
+        h.rotation.z = -Math.PI / 2.3;
+        h.position.set(0.6, 0.1, 0);
+        g.add(h);
+        // Tusks
+        const tsk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.01, 0.22, 3), getExplorationMaterial(0xfef08a));
+        tsk.position.set(0.72, 0.05, 0.15);
+        tsk.rotation.z = Math.PI / 3;
+        const tsk2 = tsk.clone(); tsk2.position.z = -0.15;
+        g.add(tsk); g.add(tsk2);
+      }
+      else if(type === "tiger" || type === "lion") {
+        bodyMat = getExplorationMaterial(type === "tiger" ? 0xe97c00 : 0xd9ac50);
+        // muscular body
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.65, 0.65), bodyMat);
+        g.add(b);
+        // thick head
+        const h = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.48), bodyMat);
+        h.position.set(0.75, 0.4, 0);
+        g.add(h);
+        
+        if (type === "lion") {
+          // Thick mane
+          const maneMat = getExplorationMaterial(0x7c2d12);
+          const mane = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.75, 0.75), maneMat);
+          mane.position.set(0.62, 0.35, 0);
+          g.add(mane);
+        } else {
+          // Orange stripes pattern indicators
+          const strp = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 0.68), getExplorationMaterial(0x000000));
+          strp.position.set(0.1, 0, 0);
+          const strp2 = strp.clone(); strp2.position.x = -0.35;
+          g.add(strp); g.add(strp2);
+        }
+      }
+      else if(type === "elephant") {
+        bodyMat = getExplorationMaterial(0x71717a);
+        // Massive body
+        const b = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.5), bodyMat);
+        b.position.y = 0.5;
+        g.add(b);
+        // neck & head
+        const h = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 1.1), bodyMat);
+        h.position.set(1.5, 1.2, 0);
+        g.add(h);
+        // Ears
+        const earG = new THREE.BoxGeometry(0.15, 1.1, 0.85);
+        const lEar = new THREE.Mesh(earG, bodyMat); lEar.position.set(1.4, 1.0, 0.85);
+        const rEar = lEar.clone(); rEar.position.z = -0.85;
+        g.add(lEar); g.add(rEar);
+        // Trunk
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.08, 1.5, 5), bodyMat);
+        trunk.position.set(2.0, 0.4, 0);
+        trunk.rotation.z = Math.PI/10;
+        g.add(trunk);
+      }
+      else if(type === "shark") {
+        bodyMat = getExplorationMaterial(0x3f5efb); // Turquoise metallic deep sea shark blue
+        // Sleek marine body
+        const b = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.8, 6), bodyMat);
+        b.rotation.z = Math.PI / 2;
+        g.add(b);
+        // Shark Fin
+        const fGeom = new THREE.ConeGeometry(0.2, 0.55, 3);
+        const mainFin = new THREE.Mesh(fGeom, bodyMat);
+        mainFin.position.set(-0.1, 0.5, 0);
+        mainFin.rotation.z = -Math.PI / 8;
+        g.add(mainFin);
+        // Tail
+        const tailFin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), bodyMat);
+        tailFin.position.set(-1.0, 0, 0);
+        g.add(tailFin);
+      }
+
+      // Add legs (for land predators/animals)
+      if (type !== "shark") {
+        const legGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 4);
+        const legMat = bodyMat;
+        const fl = new THREE.Mesh(legGeom, legMat); fl.position.set(0.4, -0.4, 0.22);
+        const fr = fl.clone(); fr.position.z = -0.22;
+        const bl = fl.clone(); bl.position.x = -0.4;
+        const br = bl.clone(); br.position.z = -0.22;
+        
+        g.add(fl); g.add(fr); g.add(bl); g.add(br);
+      }
+
+      g.castShadow = true;
+      g.receiveShadow = true;
+      return g;
+    }
+
+    // Procedural Vehicle builder (Sedan, Sports Car, SUV, Ship)
+    function createVehicleMesh(category) {
+      const g = new THREE.Group();
+      let baseColor;
+      
+      if(category === "sports") baseColor = 0xb91c1c; // flaming racing red
+      else if(category === "taxi") baseColor = 0xeab308; // yellow taxi cab
+      else if(category === "suv") baseColor = 0x14532d; // offroad army green
+      else if(category === "sedan") baseColor = 0x1d4ed8; // corporate solid blue
+      else if(category === "truck") baseColor = 0x475569; // solid grey industrial
+      else if(category === "boat" || category === "ship") baseColor = 0xf8fafc; // clean yacht marine white
+
+      const isWaterCraft = (category === "boat" || category === "ship");
+
+      if (isWaterCraft) {
+        // Hull Shape
+        const hullGeom = new THREE.BoxGeometry(1.6, 0.7, 4.0);
+        const hull = new THREE.Mesh(hullGeom, getExplorationMaterial(baseColor));
+        g.add(hull);
+        // Bow point
+        const bow = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.2, 4), getExplorationMaterial(baseColor));
+        bow.rotation.x = Math.PI / 2;
+        bow.position.set(0, 0.1, 2.3);
+        g.add(bow);
+        // Cabin
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.8), getExplorationMaterial(0x1e293b));
+        cabin.position.set(0, 0.6, -0.45);
+        g.add(cabin);
+
+        if (category === "ship") {
+          // Massive commercial cruise liner details
+          hull.scale.set(1.8, 1.8, 2.2);
+          bow.scale.set(1.8, 1.8, 2.0);
+          bow.position.set(0, 0.3, 4.5);
+          cabin.scale.set(1.5, 1.5, 1.8);
+          cabin.position.set(0, 1.6, -1.0);
+          // Smokestack
+          const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 6), getExplorationMaterial(0x000000));
+          stack.position.set(0, 3.2, -1.5);
+          g.add(stack);
+        }
+      } else {
+        // Classic road car architecture
+        const bodyH = (category === "suv" || category === "truck") ? 0.95 : 0.55;
+        const bottomBox = new THREE.Mesh(new THREE.BoxGeometry(1.65, bodyH, 3.4), getExplorationMaterial(baseColor));
+        bottomBox.position.y = bodyH / 2;
+        g.add(bottomBox);
+
+        // Top Cabin
+        const topH = 0.58;
+        const topBox = new THREE.Mesh(new THREE.BoxGeometry(1.4, topH, category === "truck" ? 1.2 : 2.0), getExplorationMaterial(0x0c0a09, 0.1));
+        topBox.position.set(0, bodyH + (topH / 2), category === "truck" ? 0.8 : -0.2);
+        g.add(topBox);
+
+        // Wheels
+        const wGeom = new THREE.CylinderGeometry(0.38, 0.38, 0.32, 6);
+        wGeom.rotation.z = Math.PI / 2;
+        const wMat = getExplorationMaterial(0x18181b);
+
+        const fl = new THREE.Mesh(wGeom, wMat); fl.position.set(0.85, 0.3, 1.0);
+        const fr = fl.clone(); fr.position.x = -0.85;
+        const bl = fl.clone(); bl.position.set(0.85, 0.3, -1.0);
+        const br = bl.clone(); br.position.x = -0.85;
+
+        g.add(fl); g.add(fr); g.add(bl); g.add(br);
+      }
+
+      g.castShadow = true;
+      g.receiveShadow = true;
+      return g;
+    }
+
+
+    /**************************************************************************
+     * SCENE CREATION & TERRAIN SHAPING
+     **************************************************************************/
+    function initSceneGraphics() {
+      const container = document.getElementById("canvas-container");
+      scene = new THREE.Scene();
+
+      // Atmospheric fog
+      fog = new THREE.FogExp2(0xcbc3e3, 0.0018);
+      scene.fog = fog;
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.2, 2000);
+      clock = new THREE.Clock();
+
+      // Ambient warm solar glow
+      lights.ambient = new THREE.AmbientLight(0xffedd5, 0.42);
+      scene.add(lights.ambient);
+
+      // Main Golden Sunlight
+      lights.sun = new THREE.DirectionalLight(0xffedd5, 1.2);
+      lights.sun.position.set(300, 350, 200);
+      lights.sun.castShadow = true;
+      lights.sun.shadow.mapSize.width = 1024;
+      lights.sun.shadow.mapSize.height = 1024;
+      lights.sun.shadow.camera.near = 0.5;
+      lights.sun.shadow.camera.far = 1200;
+      
+      const shadowBuffer = 400;
+      lights.sun.shadow.camera.left = -shadowBuffer;
+      lights.sun.shadow.camera.right = shadowBuffer;
+      lights.sun.shadow.camera.top = shadowBuffer;
+      lights.sun.shadow.camera.bottom = -shadowBuffer;
+      scene.add(lights.sun);
+
+      // Starfield / Procedural Sky sphere
+      const starGeo = new THREE.SphereGeometry(800, 16, 16);
+      const starMat = new THREE.MeshBasicMaterial({ color: 0x070913, side: THREE.BackSide, wireframe: false });
+      directionalSkySphere = new THREE.Mesh(starGeo, starMat);
+      scene.add(directionalSkySphere);
+
+      // Generate Terrain World map
+      buildProceduralTerrainMap();
+    }
+
+    // Sculpt terrain heights logically
+    function getTerrainHeightAt(x, z) {
+      // Sand beaches & Sea blending
+      const dOcean = Math.sqrt(x*x + z*z);
+      if (dOcean < Biomes.OCEAN.r + 50) {
+        // Deep underwater canyon
+        const depth = Math.max(-45, -5 - ((Biomes.OCEAN.r - dOcean) * 0.12));
+        return depth;
+      }
+
+      // Check Mountain Heights
+      const dMtn = Math.sqrt((x - Biomes.MOUNTAIN.x)**2 + (z - Biomes.MOUNTAIN.z)**2);
+      let height = 1.0;
+
+      if(dMtn < Biomes.MOUNTAIN.r) {
+        const peakRatio = 1.0 - (dMtn / Biomes.MOUNTAIN.r);
+        height += (peakRatio * peakRatio) * 110; // Tall sharp peaks
+        return height;
+      }
+
+      // Forest gentle bumps
+      const dFrst = Math.sqrt((x - Biomes.FOREST.x)**2 + (z - Biomes.FOREST.z)**2);
+      if(dFrst < Biomes.FOREST.r) {
+        height += Math.sin(x*0.05)*1.8 + Math.cos(z*0.05)*1.8 + 2;
+        return height;
+      }
+
+      // Default grass fields and flats
+      return Math.sin(x*0.01)*5 + Math.cos(z*0.01)*5 + 1;
+    }
+
+    // Color code and compile terrain triangles
+    function buildProceduralTerrainMap() {
+      const terrainGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 64, 64);
+      terrainGeo.rotateX(-Math.PI / 2);
+
+      const positions = terrainGeo.attributes.position;
+      const colors = [];
+
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+
+        const y = getTerrainHeightAt(x, z);
+        positions.setY(i, y);
+
+        // Biome Palette Color Splatting
+        const col = new THREE.Color();
+        if (y < SEA_LEVEL + 1.2) {
+          col.setHex(0xeab308); // beautiful warm sandy shores
+        } else if (y >= 60) {
+          col.setHex(0xf8fafc); // Snowy peak caps
+        } else if (y > 22) {
+          col.setHex(0x52525b); // Mountain granite rocks
+        } else if (x < -100 && z < -100) {
+          col.setHex(0x166534); // Deep lush dense forest evergreen green
+        } else if (x > 150 && z > 150) {
+          col.setHex(0xca8a04); // desert dunes
+        } else {
+          col.setHex(0x3f6212); // pleasant green meadows
+        }
+
+        colors.push(col.r, col.g, col.b);
+      }
+
+      terrainGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      terrainGeo.computeVertexNormals();
+
+      const terrainMat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.92,
+        flatShading: true
+      });
+
+      const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+      terrainMesh.receiveShadow = true;
+      scene.add(terrainMesh);
+
+      // Create Beautiful Oceanic Water Volume
+      const waterGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE);
+      const waterMat = new THREE.MeshStandardMaterial({
+        color: 0x0284c7, // sea deep blue sky reflection
+        roughness: 0.15,
+        transparent: true,
+        opacity: 0.82,
+        flatShading: true
+      });
+      const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+      waterMesh.rotateX(-Math.PI/2);
+      waterMesh.position.y = SEA_LEVEL;
+      scene.add(waterMesh);
+    }
+
+
+    /**************************************************************************
+     * PROCEDURAL VILLAGE, FORESTProps, CITIZENS, TRADERS
+     **************************************************************************/
+    function spawnWorldProps() {
+      setLoader(30, "MOCKING NATURE PROP SYSTEM...");
+
+      // Instanced and procedural Forest trees
+      const treeLeafMat = getExplorationMaterial(0x15803d);
+      const treeTrunkMat = getExplorationMaterial(0x7c2d12);
+
+      // Pine tree geometry
+      const leafGeo = new THREE.ConeGeometry(2.0, 4.0, 4);
+      const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 2.5, 4);
+
+      // Draw 300+ procedural elements in forest and mountain margins
+      for (let i = 0; i < 420; i++) {
+        // Randomly scatter around forest area or desert margins
+        const isDesert = Math.random() > 0.72;
+        const x = isDesert ? (180 + Math.random() * 200) : (-100 - Math.random() * 300);
+        const z = isDesert ? (180 + Math.random() * 200) : (-100 - Math.random() * 300);
+        const y = getTerrainHeightAt(x, z);
+
+        if (y > SEA_LEVEL + 0.5) {
+          const treeGroup = new THREE.Group();
+          treeGroup.position.set(x, y, z);
+
+          if (isDesert) {
+            // Cactus
+            const cactusBody = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 3.2, 5), getExplorationMaterial(0x15803d));
+            cactusBody.castShadow = true;
+            treeGroup.add(cactusBody);
+            // Arms
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.2, 0.3), getExplorationMaterial(0x15803d));
+            armL.position.set(0.6, 0.8, 0);
+            treeGroup.add(armL);
+          } else {
+            // Evergreen Tree
+            const trunk = new THREE.Mesh(trunkGeo, treeTrunkMat);
+            trunk.position.y = 1.25;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const foliage = new THREE.Mesh(leafGeo, treeLeafMat);
+            foliage.position.y = 3.5;
+            foliage.castShadow = true;
+            treeGroup.add(foliage);
+
+            const foliage2 = foliage.clone();
+            foliage2.scale.set(0.75, 0.75, 0.75);
+            foliage2.position.y = 4.8;
+            treeGroup.add(foliage2);
+          }
+
+          treeGroup.scale.setScalar(0.75 + Math.random() * 0.5);
+          scene.add(treeGroup);
+          treesInstance.push(treeGroup);
+        }
+      }
+
+      setLoader(55, "ERECTING VILLAGE & CITIES...");
+
+      // Rustic Village: Wooden houses around village center
+      const vcX = Biomes.VILLAGE.x;
+      const vcZ = Biomes.VILLAGE.z;
+      for (let i = 0; i < 6; i++) {
+        const hG = new THREE.Group();
+        const angle = (i / 6) * Math.PI * 2;
+        const hX = vcX + Math.sin(angle) * 35;
+        const hZ = vcZ + Math.cos(angle) * 35;
+        const hY = getTerrainHeightAt(hX, hZ);
+
+        // Core base Cabin box
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 5), getExplorationMaterial(0xb45309));
+        cabin.position.y = 2.5;
+        cabin.castShadow = true;
+        hG.add(cabin);
+
+        // Triangular roof
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(5.5, 4.0, 4), getExplorationMaterial(0xd97706));
+        roof.position.y = 5.8;
+        roof.rotation.y = Math.PI / 4;
+        roof.scale.set(1.4, 1, 1.4);
+        hG.add(roof);
+
+        hG.position.set(hX, hY, hZ);
+        hG.rotation.y = -angle + Math.PI;
+        scene.add(hG);
+      }
+
+      // Campfire in village center
+      const campGroup = new THREE.Group();
+      campGroup.position.set(vcX, getTerrainHeightAt(vcX, vcZ), vcZ);
+      // Stones ring
+      for(let j=0; j<8; j++) {
+        const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35), getExplorationMaterial(0x52525b));
+        const sa = (j/8)*Math.PI*2;
+        stone.position.set(Math.sin(sa)*1.2, 0.1, Math.cos(sa)*1.2);
+        campGroup.add(stone);
+      }
+      // Wooden Logs crossing
+      const logG = new THREE.CylinderGeometry(0.08, 0.08, 1.6); logG.rotateZ(Math.PI/4);
+      const log1 = new THREE.Mesh(logG, getExplorationMaterial(0x451a03)); log1.position.y = 0.2;
+      campGroup.add(log1);
+      scene.add(campGroup);
+
+      // Village Trader Stall
+      const vStall = new THREE.Group();
+      vStall.position.set(vcX + 10, getTerrainHeightAt(vcX+10, vcZ-12), vcZ - 12);
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(4, 1.6, 2), getExplorationMaterial(0xd97706));
+      counter.position.y = 0.8;
+      vStall.add(counter);
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.2, 2.2), getExplorationMaterial(0xdc2626)); // red trader roof
+      canopy.position.y = 3.2;
+      vStall.add(canopy);
+      // Supports
+      const supp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2), getExplorationMaterial(0xf8fafc));
+      supp.position.set(1.9, 2.1, 0.9);
+      const supp2 = supp.clone(); supp2.position.x = -1.9;
+      vStall.add(supp); vStall.add(supp2);
+      vStall.name = "VILLAGE_TRADER";
+      scene.add(vStall);
+      interactiveProps.push({ type: "trader", mesh: vStall, name: "Village Trader", rateMultiplier: 1.0 });
+
+      // Neon City: Skyscrapers & Grid streets
+      const ccX = Biomes.CITY.x;
+      const ccZ = Biomes.CITY.z;
+      const roadGeo = new THREE.PlaneGeometry(80, 20);
+      roadGeo.rotateX(-Math.PI/2);
+      const roadMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.95 });
+      
+      const cityCentralRoad = new THREE.Mesh(roadGeo, roadMat);
+      cityCentralRoad.position.set(ccX, getTerrainHeightAt(ccX, ccZ) + 0.08, ccZ);
+      scene.add(cityCentralRoad);
+      cityRoadPlanes.push(cityCentralRoad);
+
+      // Neon Skyscraper Blocks
+      for (let rx = -2; rx <= 2; rx++) {
+        for (let rz = -2; rz <= 2; rz++) {
+          if (rx === 0 || rz === 0) continue; // save central cross streets space
+
+          const sX = ccX + (rx * 40);
+          const sZ = ccZ + (rz * 40);
+          const sY = getTerrainHeightAt(sX, sZ);
+
+          const skyG = new THREE.Group();
+          skyG.position.set(sX, sY, sZ);
+
+          const hFactor = 40 + Math.random() * 65;
+          const skyscraper = new THREE.Mesh(
+            new THREE.BoxGeometry(16, hFactor, 16),
+            getExplorationMaterial(0x1e293b, 0.6) // corporate slate window box
+          );
+          skyscraper.position.y = hFactor / 2;
+          skyscraper.castShadow = true;
+          skyG.add(skyscraper);
+
+          // Add random bright colorful Neon window indicators
+          const isNeonPink = Math.random() > 0.5;
+          const neonM = getExplorationMaterial(0xffffff, 0.1, isNeonPink ? 0xec4899 : 0x06b6d4); // emissive pink/cyan
+          const windowGrid = new THREE.Mesh(new THREE.BoxGeometry(16.2, 2.0, 6.0), neonM);
+          windowGrid.position.set(0, hFactor - 5, 0);
+          skyG.add(windowGrid);
+
+          const windowGrid2 = windowGrid.clone();
+          windowGrid2.position.y -= 12;
+          windowGrid2.scale.set(1, 1.2, 1);
+          skyG.add(windowGrid2);
+
+          scene.add(skyG);
+        }
+      }
+
+      // City high price Trader stall
+      const cityStall = new THREE.Group();
+      cityStall.position.set(ccX, getTerrainHeightAt(ccX, ccZ) + 0.1, ccZ - 10);
+      const cCounter = new THREE.Mesh(new THREE.BoxGeometry(5, 1.8, 2.2), getExplorationMaterial(0x0f172a));
+      cCounter.position.y = 0.9;
+      cityStall.add(cCounter);
+      const goldTrunk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), getExplorationMaterial(0xfef08a, 0.1, 0xca8a04));
+      goldTrunk.position.set(1.5, 1.2, 0);
+      cityStall.add(goldTrunk);
+      cityStall.name = "CITY_TRADER";
+      scene.add(cityStall);
+      interactiveProps.push({ type: "trader", mesh: cityStall, name: "City Commerce Agent", rateMultiplier: 2.2 });
+    }
+
+
+    /**************************************************************************
+     * ANIMAL SPAWN ENGINE
+     **************************************************************************/
+    function spawnWildlife() {
+      setLoader(75, "INTRODUCING BEASTS AND SHARKS...");
+
+      // Forest Animals: Deers, Boars, Rabbits
+      const forestLandTypes = ["deer", "deer", "boar", "boar", "rabbit", "rabbit"];
+      for (let i = 0; i < 24; i++) {
+        const type = forestLandTypes[i % forestLandTypes.length];
+        const ranRadius = 30 + Math.random() * 160;
+        const rotVal = Math.random() * Math.PI * 2;
+        const x = Biomes.FOREST.x + Math.sin(rotVal) * ranRadius;
+        const z = Biomes.FOREST.z + Math.cos(rotVal) * ranRadius;
+        const y = getTerrainHeightAt(x, z);
+
+        if (y > SEA_LEVEL + 0.5) {
+          const mesh = createAnimalMesh(type);
+          mesh.position.set(x, y, z);
+          scene.add(mesh);
+
+          animals.push({
+            type: type,
+            mesh: mesh,
+            pos: new THREE.Vector3(x, y, z),
+            rot: Math.random() * Math.PI * 2,
+            hp: type === "deer" ? 50 : type === "rabbit" ? 20 : 80,
+            speed: type === "rabbit" ? 9 : type === "deer" ? 7 : 4,
+            isPredator: false,
+            lootType: type === "rabbit" ? "meat" : type === "deer" ? "skin" : "meat",
+            state: "wander", // wander, flee, chase
+            timer: 0
+          });
+        }
+      }
+
+      // Predators: Tigers, Lions, Elephants in desert and high plains
+      const heavyWild = ["tiger", "lion", "elephant"];
+      for (let i = 0; i < 9; i++) {
+        const type = heavyWild[i % heavyWild.length];
+        const x = 120 + Math.random() * 220;
+        const z = -200 + Math.random() * 350;
+        const y = getTerrainHeightAt(x, z);
+
+        const mesh = createAnimalMesh(type);
+        mesh.position.set(x, y, z);
+        scene.add(mesh);
+
+        animals.push({
+          type: type,
+          mesh: mesh,
+          pos: new THREE.Vector3(x, y, z),
+          rot: Math.random() * Math.PI * 2,
+          hp: type === "elephant" ? 300 : 150,
+          speed: type === "elephant" ? 3.5 : 9.5,
+          isPredator: type !== "elephant",
+          lootType: type === "elephant" ? "skin" : "meat",
+          state: "wander",
+          timer: 0
+        });
+      }
+
+      // Ocean Dwellers: Sharks
+      for(let i=0; i<12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const sx = Math.sin(angle) * (180 + Math.random()*150);
+        const sz = Math.cos(angle) * (180 + Math.random()*150);
+        
+        const mesh = createAnimalMesh("shark");
+        mesh.position.set(sx, SEA_LEVEL - 2.5, sz);
+        scene.add(mesh);
+
+        animals.push({
+          type: "shark",
+          mesh: mesh,
+          pos: new THREE.Vector3(sx, SEA_LEVEL - 2.5, sz),
+          rot: Math.random() * Math.PI * 2,
+          hp: 120,
+          speed: 8.5,
+          isPredator: true,
+          lootType: "sharkFin",
+          state: "wander",
+          timer: 0
+        });
+      }
+    }
+
+
+    /**************************************************************************
+     * VEHICLE DRIVING CONTROLS OR MOVEMENT ENGINE
+     **************************************************************************/
+    function spawnParkedVehicles() {
+      setLoader(90, "REFUELING TRANSPORT VEHICLES...");
+
+      const roadX = Biomes.CITY.x;
+      const roadZ = Biomes.CITY.z;
+
+      // Parked city cars coordinates
+      const positions = [
+        { type: "sedan", x: roadX - 12, z: roadZ + 8, r: Math.PI / 2 },
+        { type: "suv", x: roadX + 15, z: roadZ - 12, r: 0 },
+        { type: "taxi", x: roadX + 2, z: roadZ + 18, r: Math.PI },
+        { type: "sports", x: roadX - 35, z: roadZ - 35, r: -Math.PI / 4 },
+        { type: "truck", x: Biomes.VILLAGE.x + 18, z: Biomes.VILLAGE.z + 18, r: Math.PI },
+        { type: "boat", x: 20, z: -20, r: Math.PI / 4 }, // Coastal Harbor Boat
+        { type: "ship", x: -90, z: -100, r: Math.PI / 2 } // Ocean Cruiser Galleon
+      ];
+
+      positions.forEach(item => {
+        const y = (item.type === "boat" || item.type === "ship") ? SEA_LEVEL : getTerrainHeightAt(item.x, item.z);
+        const geomMesh = createVehicleMesh(item.type);
+        geomMesh.position.set(item.x, y + 0.1, item.z);
+        geomMesh.rotation.y = item.r;
+        scene.add(geomMesh);
+
+        vehicles.push({
+          type: item.type,
+          mesh: geomMesh,
+          pos: new THREE.Vector3(item.x, y, item.z),
+          rot: item.r,
+          speed: 0,
+          maxSpeed: item.type === "sports" ? 85 : item.type === "suv" ? 45 : item.type === "ship" ? 22 : item.type === "boat" ? 30 : 50,
+          accel: item.type === "sports" ? 62 : 28,
+          steerPower: item.type === "sports" ? 2.5 : item.type === "ship" ? 0.7 : 1.8,
+          isWaterCraft: (item.type === "boat" || item.type === "ship")
+        });
+      });
+    }
+
+
+    /**************************************************************************
+     * CINEMATIC FLYBY INTRO & LOADING COMPILES
+     **************************************************************************/
+    let introActive = true;
+    let introTimeline = 0;
+    const skipBtn = document.getElementById("skip-btn");
+    const startBtn = document.getElementById("start-btn");
+    const loaderSection = document.getElementById("loader-section");
+    const introScreen = document.getElementById("intro-screen");
+    const intertitle = document.getElementById("cinematic-intertitle");
+    const intertitleText = document.getElementById("intertitle-text");
+
+    // Intro stages curves (lookAt Targets)
+    const flyPoints = [
+      { cam: new THREE.Vector3(200, 150, 200), look: new THREE.Vector3(Biomes.FOREST.x, 10, Biomes.FOREST.z) }, // Stage 1 Forests
+      { cam: new THREE.Vector3(300, 180, -100), look: new THREE.Vector3(Biomes.CITY.x, 25, Biomes.CITY.z) }, // Stage 2 Cities
+      { cam: new THREE.Vector3(120, 80, -220), look: new THREE.Vector3(0, SEA_LEVEL + 5, 0) }, // Stage 3 Oceans
+      { cam: new THREE.Vector3(-150, 40, 200), look: new THREE.Vector3(Biomes.VILLAGE.x, 5, Biomes.VILLAGE.z) } // Stage 4 Landing
+    ];
+
+    function showIntertitle(text) {
+      if(!intertitle) return;
+      intertitleText.innerText = text;
+      intertitle.classList.remove("hidden");
+      intertitle.classList.add("opacity-100");
+      setTimeout(() => {
+        intertitle.classList.remove("opacity-100");
+        intertitle.classList.add("opacity-0");
+      }, 3500);
+    }
+
+    function initGameLoop() {
+      // Start button click
+      startBtn.addEventListener("click", () => {
+        AudioEngine.init();
+        AudioEngine.playAmbientMelody();
+        
+        startBtn.classList.add("hidden");
+        // Start Flyby Cinematic
+        skipBtn.classList.remove("hidden");
+        introTimeline = 0;
+        
+        let introFadeTimer = setInterval(() => {
+          if (introScreen.style.opacity === "0") {
+            clearInterval(introFadeTimer);
+            introScreen.classList.add("hidden");
+          } else {
+            introScreen.style.opacity = Math.max(0, parseFloat(introScreen.style.opacity || 1) - 0.1).toString();
+          }
+        }, 100);
+
+        showIntertitle("FAHAD'S ADVENTURE EXPECTS");
+      });
+
+      skipBtn.addEventListener("click", () => {
+        skipIntroCinematic();
+      });
+
+      // Assemble everything
+      setLoader(100, "READY FOR DEPLOYMENT!");
+      loaderSection.classList.add("hidden");
+      startBtn.classList.remove("hidden");
+    }
+
+    function skipIntroCinematic() {
+      introActive = false;
+      skipBtn.classList.add("hidden");
+      introScreen.classList.add("hidden");
+      intertitle.classList.add("hidden");
+      document.getElementById("hud").classList.remove("hidden");
+      showTouchUI();
+
+      // Spawn Fahad comfortably standing in Forest Clearing
+      player.pos.set(Biomes.FOREST.x + 30, getTerrainHeightAt(Biomes.FOREST.x + 30, Biomes.FOREST.z + 30), Biomes.FOREST.z + 30);
+      player.mesh = buildFahadModel();
+      scene.add(player.mesh);
+      updateHeldWeaponMesh();
+
+      toast("FAHAD ENTERED THE WORLD! GO HUNTING & DRIVING!");
+    }
+
+
+    /**************************************************************************
+     * HUNTING, PARTICLES & TOAST VITAL SYSTEMS
+     **************************************************************************/
+    
+    // Weapon slots
+    function selectWeapon(idx) {
+      GameState.activeWeaponIdx = idx;
+      // UI update
+      for (let i = 0; i < 3; i++) {
+        const btn = document.getElementById("weap-" + i);
+        if (i === idx) {
+          btn.classList.add("border-amber-400", "text-amber-300");
+          btn.classList.remove("border-white/10", "text-slate-400");
+        } else {
+          btn.classList.remove("border-amber-400", "text-amber-300");
+          btn.classList.add("border-white/10", "text-slate-400");
+        }
+      }
+      AudioEngine.playSwingSFX();
+      updateHeldWeaponMesh();
+    }
+
+    // Trigger hit effects blood particle bursts
+    function spawnBloodPuffs(pos, count=8, isWater=false) {
+      for(let i=0; i<count; i++) {
+        const pG = new THREE.DodecahedronGeometry(0.12 + Math.random()*0.1);
+        const pM = getExplorationMaterial(isWater ? 0x0ea5e9 : 0xef4444); // red blood or water splash
+        const pMesh = new THREE.Mesh(pG, pM);
+        pMesh.position.copy(pos);
+        scene.add(pMesh);
+
+        visualParticles.push({
+          mesh: pMesh,
+          vel: new THREE.Vector3(
+            (Math.random()-0.5)*8,
+            (Math.random()+0.2)*12,
+            (Math.random()-0.5)*8
+          ),
+          life: 1.0
+        });
+      }
+    }
+
+    function toast(message) {
+      const el = document.getElementById("status-toast");
+      if(!el) return;
+      el.innerText = message.toUpperCase();
+      el.className = "glow-border bg-amber-400 text-slate-950 px-5 py-2.5 rounded-lg text-xs font-bold tracking-widest uppercase transition duration-500 scale-100 opacity-100";
+      setTimeout(() => {
+        el.className = "glow-border bg-amber-400 text-slate-950 px-5 py-2.5 rounded-lg text-xs font-bold tracking-widest uppercase transition duration-500 scale-0 opacity-0";
+      }, 3500);
+    }
+
+    // Interactive trading action
+    function triggerInteraction() {
+      // 1. Vehicle entry/exit
+      if(GameState.activeMode === "DRIVING") {
+        exitActiveDrivingVehicle();
+        return;
+      }
+
+      // Check nearest parked vehicles
+      let nearV = null;
+      let minVD = 10;
+      vehicles.forEach(v => {
+        const d = player.pos.distanceTo(v.pos);
+        if (d < minVD) {
+          minVD = d;
+          nearV = v;
+        }
+      });
+
+      if (nearV) {
+        enterVehicleDriving(nearV);
+        return;
+      }
+
+      // Check nearest Traders
+      let nearTrader = null;
+      let minTD = 12;
+      interactiveProps.forEach(prop => {
+        if(prop.type === "trader") {
+          const d = player.pos.distanceTo(prop.mesh.position);
+          if (d < minTD) {
+            minTD = d;
+            nearTrader = prop;
+          }
+        }
+      });
+
+      if (nearTrader) {
+        performTradeSellAll(nearTrader);
+      }
+    }
+
+    function enterVehicleDriving(vehicle) {
+      if(vehicle.isWaterCraft && !player.isSwimming && player.pos.y > SEA_LEVEL + 4.0) {
+        toast("CANNOT ACCESS BOATS FROM THE HIGH CLIFF LAND!");
+        return;
+      }
+
+      GameState.activeMode = "DRIVING";
+      GameState.activeVehicle = vehicle;
+      player.mesh.visible = false; // Hide Fahad walking body while driving
+      
+      AudioEngine.startEngineSound();
+      toast("DRIVING " + vehicle.type.toUpperCase() + "! ACCELERATE WITH WASD");
+
+      document.getElementById("mode-badge").innerText = "DRIVING";
+      document.getElementById("mode-badge").className = "text-[9px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full";
+      document.getElementById("hud-speedometer").classList.remove("hidden");
+    }
+
+    function exitActiveDrivingVehicle() {
+      const v = GameState.activeVehicle;
+      if(!v) return;
+
+      GameState.activeMode = "WALKING";
+      GameState.activeVehicle = null;
+      player.mesh.visible = true;
+
+      // Position player slightly next to vehicle cabin
+      player.pos.copy(v.pos).add(new THREE.Vector3(2.5, 0.5, 0));
+      player.vel.set(0,0,0);
+
+      AudioEngine.stopEngineSound();
+      toast("WALKING AWAY FROM VEHICLE");
+
+      document.getElementById("mode-badge").innerText = "WALKING";
+      document.getElementById("mode-badge").className = "text-[9px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full";
+      document.getElementById("hud-speedometer").classList.add("hidden");
+    }
+
+    function performTradeSellAll(trader) {
+      let earned = 0;
+      const mPrice = Math.floor(10 * trader.rateMultiplier);
+      const sPrice = Math.floor(18 * trader.rateMultiplier);
+      const fPrice = Math.floor(65 * trader.rateMultiplier);
+
+      const meatCount = GameState.inventory.meat;
+      const skinCount = GameState.inventory.skin;
+      const finCount = GameState.inventory.sharkFin;
+
+      if (meatCount === 0 && skinCount === 0 && finCount === 0) {
+        toast("YOU HAVE NO WILD HARVESTS TO TRADE!");
+        return;
+      }
+
+      earned += meatCount * mPrice;
+      earned += skinCount * sPrice;
+      earned += finCount * fPrice;
+
+      GameState.coins += earned;
+      GameState.inventory.meat = 0;
+      GameState.inventory.skin = 0;
+      GameState.inventory.sharkFin = 0;
+
+      // Update HUDs
+      document.getElementById("coin-count").innerText = GameState.coins;
+      document.getElementById("inv-meat").innerText = "0x MEAT";
+      document.getElementById("inv-skin").innerText = "0x FUR";
+      document.getElementById("inv-shrk").innerText = "0x FIN";
+
+      AudioEngine.playCoinGoldSFX();
+      toast("TRADED AT " + trader.name.toUpperCase() + "! EARNED " + earned + " COINS! 🪙");
+    }
+
+
+    /**************************************************************************
+     * MAIN ENGINE TICK LOOP - MATH PHYSICS & RENDERS
+     **************************************************************************/
+    
+    // Perform spear stab, knife slash or arrow firing
+    function executeWeaponAttackAction() {
+      if(player.isAttacking) return;
+      player.isAttacking = true;
+      player.attackTimer = 0.35; // 350ms anim duration
+
+      AudioEngine.resume();
+      AudioEngine.playSwingSFX();
+
+      // Animate attack sway of arm
+      const arm = player.mesh.getObjectByName("weapon_node");
+      if(arm) {
+        arm.rotation.x = -Math.PI / 2;
+        setTimeout(() => { if(arm) arm.rotation.x = 0; }, 250);
+      }
+
+      // Spear or knife short-range sphere raycasting
+      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rot);
+      forward.normalize();
+
+      // Ranged vs Melee range checks
+      const attackRange = GameState.activeWeaponIdx === 2 ? 65 : 4.5;
+      const attackPos = player.pos.clone().add(forward.multiplyScalar(attackRange * 0.5));
+
+      let hitMonster = null;
+      let min_d = 9999;
+
+      animals.forEach(animal => {
+        if (animal.hp > 0) {
+          const d = player.pos.distanceTo(animal.mesh.position);
+          if (d < attackRange) {
+            // Check angular alignment (must be looking at target roughly)
+            const dVec = animal.mesh.position.clone().sub(player.pos).normalize();
+            const dot = dVec.dot(new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rot));
+            
+            if (dot > 0.45 && d < min_d) {
+              min_d = d;
+              hitMonster = animal;
+            }
+          }
+        }
+      });
+
+      if (hitMonster) {
+        const dmg = GameState.activeWeaponIdx === 1 ? 40 : GameState.activeWeaponIdx === 2 ? 30 : 25;
+        hitMonster.hp -= dmg;
+        
+        spawnBloodPuffs(hitMonster.mesh.position, 12, hitMonster.type === "shark");
+        AudioEngine.playHitSFX(hitMonster.type === "shark");
+
+        if (hitMonster.hp <= 0) {
+          // Animal died drops drops drop
+          hitMonster.mesh.rotation.x = Math.PI / 2; // make it collapse
+          toast("BEAST DESTROYED! HARVESTED " + hitMonster.lootType.toUpperCase());
+          AudioEngine.playAnimalRoarSFX(hitMonster.isPredator);
+
+          // Update inventory store
+          if (hitMonster.lootType === "meat") {
+            GameState.inventory.meat++;
+            document.getElementById("inv-meat").innerText = GameState.inventory.meat + "x MEAT";
+          } else if (hitMonster.lootType === "skin") {
+            GameState.inventory.skin++;
+            document.getElementById("inv-skin").innerText = GameState.inventory.skin + "x FUR";
+          } else {
+            GameState.inventory.sharkFin++;
+            document.getElementById("inv-shrk").innerText = GameState.inventory.sharkFin + "x FIN";
+          }
+        } else {
+          // Trigger flee or predator aggressive posture
+          if (hitMonster.isPredator) {
+            hitMonster.state = "chase";
+            toast("WARNING: PREDATOR ALERT AND AGGRESSIVE!");
+          } else {
+            hitMonster.state = "flee";
+          }
+        }
+      }
+    }
+
+    // Touch actions link
+    document.getElementById("touch-attack").addEventListener("mousedown", executeWeaponAttackAction);
+    document.getElementById("touch-jump").addEventListener("mousedown", () => {
+      if(!player.isJumping) {
+        player.isJumping = true;
+        player.airVelocityY = 12.0;
+      }
+    });
+
+    // Handle mouse click triggers attack
+    window.addEventListener("mousedown", (e) => {
+      // Only trigger game action if clicking the main canvas
+      if (e.target.closest('#canvas-container') && GameState.activeMode === "WALKING" && !introActive) {
+        executeWeaponAttackAction();
+      }
+    });
+
+
+    // Main Loop Tick Called Every frame by NATIVE WEB REFRESH rate
+    function updatePhysicsEngine(delta) {
+      if(introActive) {
+        // Flyby drone cinematic path interpolation
+        introTimeline += delta * 0.082;
+        if(introTimeline >= 4.0) {
+          skipIntroCinematic();
+          return;
+        }
+
+        const index = Math.floor(introTimeline);
+        const ratio = introTimeline % 1.0;
+        
+        const ptA = flyPoints[index];
+        const ptB = flyPoints[Math.min(flyPoints.length-1, index + 1)];
+
+        camera.position.lerpVectors(ptA.cam, ptB.cam, ratio);
+        const lookTarget = new THREE.Vector3().lerpVectors(ptA.look, ptB.look, ratio);
+        camera.lookAt(lookTarget);
+
+        // Update atmospheric sun to animate sunset
+        GameState.dayTime += delta * 0.005;
+        return;
+      }
+
+      // Clock tick of day cycles (0 to 1 hour rotation loop)
+      GameState.dayTime = (GameState.dayTime + delta * 0.001) % 1.0;
+      updateCelestialSkyPhases();
+
+      // Check current biome zone label update
+      updateCurrentBiomeZoneIndicator();
+
+      if (GameState.activeMode === "DRIVING") {
+        updateVehiclePhysicsController(delta);
+      } else {
+        updateFahadWalkingController(delta);
+      }
+
+      // Update wild beasts wander, run, and hunt
+      updateWildlifeAIStateMachines(delta);
+
+      // Blood and water splat rendering particles dynamics
+      updateVisualSplatterParticles(delta);
+
+      // Render radar Canvas lines
+      renderInteractiveRadarGraph();
+    }
+
+    // Dynamic sky illumination color temperatures
+    function updateCelestialSkyPhases() {
+      const sunRotation = GameState.dayTime * Math.PI * 2;
+      lights.sun.position.set(
+        Math.cos(sunRotation) * 400 + 100,
+        Math.sin(sunRotation) * 400,
+        Math.sin(sunRotation) * 200
+      );
+
+      // Set fog colors according sun angle
+      const angleY = lights.sun.position.y;
+      
+      let hueCol = new THREE.Color();
+      let hourStr = "12:00";
+      let phaseStr = "DAYTIME";
+
+      if(angleY > 200) {
+        hueCol.setHex(0xbae6fd); // celestial light sky blue afternoon
+        lights.ambient.color.setHex(0xffedd5);
+        lights.sun.intensity = 1.35;
+        phaseStr = "BRIGHT MID-DAYTIME";
+        hourStr = "12:45";
+        directionalSkySphere.material.color.setHex(0x0e172c);
+      } else if (angleY > 0) {
+        hueCol.setHex(0xfeb081); // beautiful amber gold sunset haze
+        lights.ambient.color.setHex(0xd97706);
+        lights.sun.intensity = 0.85;
+        phaseStr = "GOLDEN SUNSET SUNRISE";
+        hourStr = "18:15";
+        directionalSkySphere.material.color.setHex(0x020617);
+      } else {
+        hueCol.setHex(0x020617); // midnight sky deep dark
+        lights.ambient.color.setHex(0x1e1b4b);
+        lights.sun.intensity = 0.05;
+        phaseStr = "DENSE MOONLIT CHILLY NIGHTTIME";
+        hourStr = "23:40";
+        directionalSkySphere.material.color.setHex(0x05050e);
+      }
+
+      renderer.setClearColor(hueCol);
+      scene.background = hueCol;
+      fog.color.copy(hueCol);
+
+      // Update top banner
+      document.getElementById("hud-time").innerText = hourStr + " " + phaseStr;
+    }
+
+    // Identify where player is currently exploring
+    function updateCurrentBiomeZoneIndicator() {
+      let min_d = 9999;
+      let activeB = "FOREST";
+      
+      const pPos = GameState.activeMode === "DRIVING" ? GameState.activeVehicle.pos : player.pos;
+
+      for (let key in Biomes) {
+        if (key === "OCEAN") continue;
+        const b = Biomes[key];
+        const dist = Math.sqrt((pPos.x - b.x)**2 + (pPos.z - b.z)**2);
+        if (dist < b.r && dist < min_d) {
+          min_d = dist;
+          activeB = key;
+        }
+      }
+
+      // If extremely far or deep, set ocean
+      if (pPos.y < SEA_LEVEL + 0.5) {
+        activeB = "OCEAN";
+      }
+
+      if(GameState.currentBiome !== activeB) {
+        GameState.currentBiome = activeB;
+        toast("ZONE DISCOVERED: " + Biomes[activeB].label);
+      }
+    }
+
+
+    // Third-person Walking input controller (Fahad)
+    function updateFahadWalkingController(delta) {
+      // Movement vectors
+      let moveX = 0;
+      let moveZ = 0;
+
+      if(keys.w || keys.arrowup) moveZ += 1;
+      if(keys.s || keys.arrowdown) moveZ -= 1;
+      if(keys.a || keys.arrowleft) moveX += 1;
+      if(keys.d || keys.arrowright) moveX -= 1;
+
+      // Handle custom swim physics
+      player.isSwimming = (player.pos.y <= SEA_LEVEL + 0.2);
+
+      let targetSpeed = player.isSwimming ? 4.5 : 8.8;
+      
+      // Sprint mechanics
+      player.isSprinting = keys.Shift && (moveX !== 0 || moveZ !== 0) && GameState.stamina > 5;
+      if(player.isSprinting) {
+        targetSpeed *= 1.8;
+        GameState.stamina = Math.max(0, GameState.stamina - delta * 24);
+      } else {
+        GameState.stamina = Math.min(100, GameState.stamina + delta * 12);
+      }
+
+      const inputVec = new THREE.Vector3(moveX, 0, moveZ).normalize();
+      
+      // Relate camera relative direction axes for navigation
+      const camF = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), touchLookYaw).normalize();
+      const camR = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), touchLookYaw).normalize();
+
+      const motion = camR.multiplyScalar(-inputVec.x).add(camF.multiplyScalar(inputVec.z));
+      if(motion.lengthSq() > 0) {
+        motion.normalize();
+        player.vel.lerp(motion.multiplyScalar(targetSpeed), delta * 8.0);
+        player.rot = Math.atan2(player.vel.x, player.vel.z);
+      } else {
+        player.vel.lerp(new THREE.Vector3(), delta * 9.0);
+      }
+
+      // Air gravity jump
+      if(player.isJumping) {
+        player.pos.y += player.airVelocityY * delta;
+        player.airVelocityY -= 32.0 * delta; // Gravity multiplier
+
+        const surfaceY = getTerrainHeightAt(player.pos.x, player.pos.z);
+        if (player.pos.y < surfaceY) {
+          player.pos.y = surfaceY;
+          player.isJumping = false;
+          player.airVelocityY = 0;
+        }
+      } else {
+        // Stick to ground beautifully
+        player.pos.y = getTerrainHeightAt(player.pos.x, player.pos.z);
+      }
+
+      // Translate coordinates values
+      player.pos.addScaledVector(player.vel, delta);
+      player.mesh.position.copy(player.pos);
+      player.mesh.rotation.y = player.rot;
+
+      // Leg swim or walk walk animations
+      const leftLeg = player.mesh.getObjectByName("left_leg");
+      const rightLeg = player.mesh.getObjectByName("right_leg");
+      if(leftLeg && rightLeg) {
+        const t = clock.getElapsedTime() * (player.isSprinting ? 14 : 7);
+        const amp = player.vel.length() > 0.5 ? 0.38 : 0;
+        leftLeg.rotation.x = Math.sin(t) * amp;
+        rightLeg.rotation.x = -Math.sin(t) * amp;
+      }
+
+      // Oxygen and swim parameters HUD update
+      if (player.isSwimming) {
+        document.getElementById("oxygen-container").classList.remove("hidden");
+        // Reduce health if out of breath underwater
+        if (player.pos.y < SEA_LEVEL - 1.0) {
+          GameState.oxygen = Math.max(0, GameState.oxygen - delta * 15);
+          if (GameState.oxygen <= 0) GameState.hp = Math.max(0, GameState.hp - delta * 18);
+        } else {
+          GameState.oxygen = Math.min(100, GameState.oxygen + delta * 25);
+        }
+      } else {
+        document.getElementById("oxygen-container").classList.add("hidden");
+        GameState.oxygen = 100;
+      }
+
+      // Follow Camera spring arm behavior
+      const idealCamOffset = new THREE.Vector3(0, 5, -12).applyAxisAngle(new THREE.Vector3(0, 1, 0), touchLookYaw);
+      idealCamOffset.y += touchLookPitch * 6.5; // Drag look tilt
+      const targetCamPos = player.pos.clone().add(idealCamOffset);
+      
+      camera.position.lerp(targetCamPos, delta * 9.5);
+      camera.lookAt(player.pos.clone().add(new THREE.Vector3(0, 1.8, 0)));
+
+      // Update HUD indicators bars
+      document.getElementById("bar-hp").style.width = GameState.hp + "%";
+      document.getElementById("bar-stm").style.width = GameState.stamina + "%";
+      document.getElementById("bar-oxy").style.width = GameState.oxygen + "%";
+      document.getElementById("val-hp").innerText = Math.floor(GameState.hp) + "%";
+      document.getElementById("val-stm").innerText = Math.floor(GameState.stamina) + "%";
+      document.getElementById("val-oxy").innerText = Math.floor(GameState.oxygen) + "%";
+
+      checkForInteractionPromptsDistance();
+    }
+
+
+    // Physics driving simulation calculations
+    function updateVehiclePhysicsController(delta) {
+      const v = GameState.activeVehicle;
+      if (!v) return;
+
+      let accelerate = 0;
+      let turn = 0;
+
+      if(keys.w || keys.arrowup) accelerate += 1;
+      if(keys.s || keys.arrowdown) accelerate -= 1;
+      if(keys.a || keys.arrowleft) turn += 1;
+      if(keys.d || keys.arrowright) turn -= 1;
+
+      // Decelerations and slide bounds
+      if(accelerate !== 0) {
+        v.speed = Math.max(-v.maxSpeed * 0.4, Math.min(v.maxSpeed, v.speed + accelerate * v.accel * delta));
+      } else {
+        v.speed *= 0.96; // slow crawl friction
+      }
+
+      // Steering
+      if(turn !== 0 && Math.abs(v.speed) > 1.0) {
+        const factor = v.speed > 0 ? 1 : -1;
+        v.rot += turn * v.steerPower * factor * delta;
+      }
+
+      // Heading translate
+      const dirVec = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), v.rot).normalize();
+      
+      // Update coordinates
+      v.pos.addScaledVector(dirVec, v.speed * delta);
+      
+      // WaterCraft boundaries check
+      if (v.isWaterCraft) {
+        v.pos.y = SEA_LEVEL - 0.2 + Math.sin(clock.getElapsedTime()*2.2)*0.082; // Wave bounce
+      } else {
+        v.pos.y = getTerrainHeightAt(v.pos.x, v.pos.z);
+        // Avoid flying off high bounds unexpectedly
+      }
+
+      v.mesh.position.copy(v.pos);
+      v.mesh.rotation.y = v.rot;
+
+      // Speeds updating audio
+      AudioEngine.setEnginePitch(Math.abs(v.speed) / v.maxSpeed);
+
+      // Follow Camera attaches comfortably behind driving cabin
+      const camOffset = new THREE.Vector3(0, 7.5, -16).applyAxisAngle(new THREE.Vector3(0, 1, 0), v.rot);
+      const idealVCamera = v.pos.clone().add(camOffset);
+      camera.position.lerp(idealVCamera, delta * 9.5);
+      camera.lookAt(v.pos.clone().add(new THREE.Vector3(0, 1.2, 0)));
+
+      // Display vehicle statistics Dashboard speedometer
+      document.getElementById("hud-speed").innerText = Math.floor(Math.abs(v.speed)*2.6) + " km/h";
+
+      checkForInteractionPromptsDistance();
+    }
+
+
+    // Dynamically checks distance of Fahad to trade stalls or parked cars
+    function checkForInteractionPromptsDistance() {
+      const promptEl = document.getElementById("prompt");
+      let activePrompt = "";
+
+      if(GameState.activeMode === "DRIVING") {
+        activePrompt = "PRESS [E] TO EXIT " + GameState.activeVehicle.type.toUpperCase();
+      } else {
+        // Nearest vehicle checking
+        let minVD = 8.5;
+        vehicles.forEach(v => {
+          const dist = player.pos.distanceTo(v.pos);
+          if (dist < minVD) {
+            activePrompt = "PRESS [E] TO DRIVE " + v.type.toUpperCase();
+          }
+        });
+
+        // Nearest trade stalls checking
+        let minTD = 12;
+        interactiveProps.forEach(prop => {
+          if (prop.type === "trader") {
+            const dist = player.pos.distanceTo(prop.mesh.position);
+            if(dist < minTD) {
+              activePrompt = "PRESS [E] TO TRADE LOOT";
+            }
+          }
+        });
+      }
+
+      if (activePrompt !== "") {
+        promptEl.innerText = activePrompt;
+        promptEl.classList.remove("hidden");
+      } else {
+        promptEl.classList.add("hidden");
+      }
+    }
+
+
+    // Animal wandering and hunting mechanics
+    function updateWildlifeAIStateMachines(delta) {
+      const activeFahadPos = GameState.activeMode === "DRIVING" ? GameState.activeVehicle.pos : player.pos;
+
+      animals.forEach(animal => {
+        if (animal.hp <= 0) return; // ignore dead loot pickups meshes
+
+        animal.timer -= delta;
+        const distToFahad = animal.mesh.position.distanceTo(activeFahadPos);
+
+        // Predator Aggressive Behavior
+        if (animal.isPredator && distToFahad < 35 && GameState.activeMode === "WALKING") {
+          animal.state = "chase";
+        }
+
+        if (animal.state === "chase") {
+          // Point directly and chase Fahad
+          const lookDir = activeFahadPos.clone().sub(animal.mesh.position);
+          lookDir.y = 0;
+          lookDir.normalize();
+
+          animal.rot = Math.atan2(lookDir.x, lookDir.z);
+          animal.pos.addScaledVector(lookDir, animal.speed * 1.35 * delta);
+
+          // If reached player deal damage
+          if (distToFahad < 2.5 && GameState.activeMode === "WALKING") {
+            GameState.hp = Math.max(0, GameState.hp - delta * 32); // fast bite damage!
+            if(Math.random() > 0.95) {
+              spawnBloodPuffs(activeFahadPos, 4);
+              AudioEngine.playHitSFX(false);
+              toast("WARNING: ANIMAL BITE ATTACK SUSTAINED!");
+            }
+          }
+        } 
+        else if (animal.state === "flee" && distToFahad < 45) {
+          // Timid run away opposite vectors
+          const runDir = animal.mesh.position.clone().sub(activeFahadPos);
+          runDir.y = 0;
+          runDir.normalize();
+
+          animal.rot = Math.atan2(runDir.x, runDir.z);
+          animal.pos.addScaledVector(runDir, animal.speed * 1.5 * delta);
+        }
+        else {
+          // Standard Wander state
+          if (animal.timer <= 0) {
+            animal.rot = Math.random() * Math.PI * 2;
+            animal.timer = 3.5 + Math.random() * 5.0;
+          }
+          const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), animal.rot);
+          animal.pos.addScaledVector(forward, animal.speed * 0.45 * delta);
+        }
+
+        // Clamp y coordinate to respective surface levels (beach, underwater canyon, forest floor)
+        if(animal.type === "shark") {
+          // Swim deep underwater smoothly float up down
+          animal.pos.y = SEA_LEVEL - 3.5 + Math.sin(clock.getElapsedTime() + animal.pos.x)*0.5;
+        } else {
+          animal.pos.y = getTerrainHeightAt(animal.pos.x, animal.pos.z);
+        }
+
+        animal.mesh.position.copy(animal.pos);
+        animal.mesh.rotation.y = animal.rot;
+      });
+    }
+
+
+    // Splatters update
+    function updateVisualSplatterParticles(delta) {
+      for(let i = visualParticles.length - 1; i >= 0; i--) {
+        const p = visualParticles[i];
+        p.life -= delta * 1.8;
+        
+        p.mesh.position.addScaledVector(p.vel, delta);
+        p.vel.y -= 25.0 * delta; // particle gravity drop physics
+
+        p.mesh.scale.setScalar(p.life);
+
+        if(p.life <= 0) {
+          scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          p.mesh.material.dispose();
+          visualParticles.splice(i, 1);
+        }
+      }
+    }
+
+
+    // Draw high quality minimap onto canvas element
+    function renderInteractiveRadarGraph() {
+      const radar = document.getElementById("radar-canvas");
+      if(!radar) return;
+      const ctx = radar.getContext("2d");
+      const rw = radar.width;
+      const rh = radar.height;
+
+      // Background clearing flat circle dark tone
+      ctx.clearRect(0, 0, rw, rh);
+      ctx.fillStyle = "rgba(10, 20, 10, 0.5)";
+      ctx.fillRect(0, 0, rw, rh);
+
+      // Map scale factors (map 300px meters to 96 minimap pixels)
+      const scale = 0.22;
+      const cx = rw / 2;
+      const cy = rh / 2;
+
+      const basePos = GameState.activeMode === "DRIVING" ? GameState.activeVehicle.pos : player.pos;
+
+      // Draw grid radial markers circles
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, 40, 0, Math.PI*2); ctx.stroke();
+
+      // Plot Traders landmarks
+      interactiveProps.forEach(prop => {
+        const dx = (prop.mesh.position.x - basePos.x) * scale;
+        const dz = (prop.mesh.position.z - basePos.z) * scale;
+        const tx = cx + dx;
+        const ty = cy + dz;
+
+        if (tx >= 0 && tx < rw && ty >= 0 && ty < rh) {
+          // Yellow merchant square tag
+          ctx.fillStyle = prop.name.includes("City") ? "#38bdf8" : "#facc15";
+          ctx.fillRect(tx - 3, ty - 3, 6, 6);
+        }
+      });
+
+      // Plot Wild Beasts
+      animals.forEach(ani => {
+        if(ani.hp <= 0) return;
+        const dx = (ani.pos.x - basePos.x) * scale;
+        const dz = (ani.pos.z - basePos.z) * scale;
+        const ax = cx + dx;
+        const ay = cy + dz;
+
+        if (ax >= 0 && ax < rw && ay >= 0 && ay < rh) {
+          ctx.fillStyle = ani.isPredator ? "#ef4444" : "#22c55e"; // red predator or green prey
+          ctx.beginPath(); ctx.arc(ax, ay, 2.5, 0, Math.PI*2); ctx.fill();
+        }
+      });
+
+      // Update HUD compass texts values
+      let angY = touchLookYaw * (180 / Math.PI);
+      if (angY < 0) angY += 360;
+      angY = Math.floor(angY % 360);
+
+      let cardStr = "N";
+      if(angY > 337 || angY <= 22) cardStr = "N";
+      else if(angY > 22 && angY <= 67) cardStr = "NE";
+      else if(angY > 67 && angY <= 112) cardStr = "E";
+      else if(angY > 112 && angY <= 157) cardStr = "SE";
+      else if(angY > 157 && angY <= 202) cardStr = "S";
+      else if(angY > 202 && angY <= 247) cardStr = "SW";
+      else if(angY > 247 && angY <= 292) cardStr = "W";
+      else cardStr = "NW";
+
+      document.getElementById("hud-compass").innerText = cardStr + " " + angY + "°";
+    }
+
+
+    /**************************************************************************
+     * ENGINE LIFECYCLE INITIALIZATION BOOTSTRAP
+     **************************************************************************/
+    window.addEventListener("load", () => {
+      setLoader(10, "INITIALIZING VIEWPORTS & SKYLINE...");
+      initSceneGraphics();
+
+      setLoader(40, "PLANTING MULTI BIOME FOREST...");
+      spawnWorldProps();
+
+      setLoader(70, "BREEDING WILDLIFE ANIMALS...");
+      spawnWildlife();
+
+      setLoader(85, "PREPARING LOGISTICS VEHICLES...");
+      spawnParkedVehicles();
+
+      initGameLoop();
+
+      // Game Frame loop execution
+      function tick() {
+        requestAnimationFrame(tick);
+        const dt = Math.min(0.08, clock.getDelta()); // clamp target frame time delays
+        
+        updatePhysicsEngine(dt);
+        renderer.render(scene, camera);
+      }
+      setTimeout(tick, 100);
+    });
+
+    // Resize viewport smoothly
+    window.addEventListener("resize", () => {
+      if(!camera || !renderer) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
