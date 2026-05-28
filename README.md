@@ -59,36 +59,6 @@ The goal is not only survival — it’s about exploration, discovery, and enjoy
 - Inventory and crafting system
 - Realistic sound effects
 
----
-
-## 📸 Preview
-
-> Open-world exploration experience directly in the browser.
-
----
-
-## 🧠 Inspiration
-
-This project was inspired by open-world adventure games and the idea of creating a relaxing yet exciting environment where players can freely explore nature and cities.
-
----
-
-## ⚙️ Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/MdFahadHossain006/ADVENTURE-GAME.git
-```
-
-Open the project folder and run:
-
-```bash
-index.html
-```
-
----
-
 ## 🌐 GitHub Repository
 
 [ADVENTURE-GAME Repository](https://github.com/MdFahadHossain006/ADVENTURE-GAME)
